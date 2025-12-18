@@ -2,29 +2,46 @@ import Darwin
 import Foundation
 
 class RAMMetricsCollector: @unchecked Sendable {
+    private var lastSuccessfulMetrics: RAMMetrics? = nil
+    private let logger = Logger.shared
+    
     func collectMetrics() throws -> RAMMetrics {
-        let stats = try getVMStatistics()
-        let totalMemory = try getTotalSystemMemory()
-        
-        let pageSize = UInt64(vm_kernel_page_size)
-        
-        let activeBytes = UInt64(stats.active_count) * pageSize
-        let inactiveBytes = UInt64(stats.inactive_count) * pageSize
-        let wiredBytes = UInt64(stats.wire_count) * pageSize
-        let availableBytes = UInt64(stats.free_count) * pageSize
-        
-        let usedBytes = totalMemory - availableBytes
-        let usagePercent = Double(usedBytes) / Double(totalMemory) * 100
-        
-        return RAMMetrics(
-            usedBytes: usedBytes,
-            availableBytes: availableBytes,
-            totalBytes: totalMemory,
-            usagePercent: usagePercent,
-            activeBytes: activeBytes,
-            inactiveBytes: inactiveBytes,
-            wiredBytes: wiredBytes
-        )
+        do {
+            let stats = try getVMStatistics()
+            let totalMemory = try getTotalSystemMemory()
+            
+            let pageSize = UInt64(vm_kernel_page_size)
+            
+            let activeBytes = UInt64(stats.active_count) * pageSize
+            let inactiveBytes = UInt64(stats.inactive_count) * pageSize
+            let wiredBytes = UInt64(stats.wire_count) * pageSize
+            let availableBytes = UInt64(stats.free_count) * pageSize
+            
+            let usedBytes = totalMemory - availableBytes
+            let usagePercent = Double(usedBytes) / Double(totalMemory) * 100
+            
+            let metrics = RAMMetrics(
+                usedBytes: usedBytes,
+                availableBytes: availableBytes,
+                totalBytes: totalMemory,
+                usagePercent: usagePercent,
+                activeBytes: activeBytes,
+                inactiveBytes: inactiveBytes,
+                wiredBytes: wiredBytes
+            )
+            
+            lastSuccessfulMetrics = metrics
+            return metrics
+        } catch {
+            logger.error("Failed to collect RAM metrics: \(error)")
+            
+            if let fallback = lastSuccessfulMetrics {
+                logger.warning("Returning cached RAM metrics due to error")
+                return fallback
+            }
+            
+            throw error
+        }
     }
     
     private func getVMStatistics() throws -> vm_statistics64 {

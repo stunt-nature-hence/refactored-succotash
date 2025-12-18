@@ -1,5 +1,5 @@
 import XCTest
-@testable import Core
+@testable import SystemMonitorCore
 
 class MockProcessDataProvider: ProcessDataProvider {
     var pids: [Int32] = []

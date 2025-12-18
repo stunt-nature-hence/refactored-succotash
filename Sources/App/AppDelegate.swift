@@ -5,18 +5,31 @@ import SystemMonitorCore
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!
     var popover: NSPopover!
+    private var viewModel: MetricsViewModel?
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         setupPopover()
         setupStatusBar()
         setupLaunchAtLogin()
+        setupTerminationHandler()
+    }
+    
+    func applicationWillTerminate(_ notification: Notification) {
+        Logger.shared.info("Application terminating, cleaning up resources")
+        viewModel?.cleanup()
+        
+        Task {
+            await SystemMetricsManager.shared.stopMonitoring()
+        }
     }
     
     private func setupPopover() {
         let popover = NSPopover()
         popover.contentSize = NSSize(width: 380, height: 850)
         popover.behavior = .transient
-        let hostingController = NSHostingController(rootView: ContentView())
+        
+        let contentView = ContentView()
+        let hostingController = NSHostingController(rootView: contentView)
         hostingController.view.wantsLayer = true
         popover.contentViewController = hostingController
         self.popover = popover
@@ -35,6 +48,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupLaunchAtLogin() {
         // Enable launch at login using our service
         LaunchService.shared.enableLaunchAtLogin()
+    }
+    
+    private func setupTerminationHandler() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleTermination),
+            name: NSApplication.willTerminateNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func handleTermination() {
+        Logger.shared.info("Handling application termination")
+        viewModel?.cleanup()
     }
 
     @objc func togglePopover(_ sender: AnyObject?) {

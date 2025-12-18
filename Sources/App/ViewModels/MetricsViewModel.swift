@@ -21,18 +21,24 @@ class MetricsViewModel: NSObject, ObservableObject {
     @Published var lastUpdateTime: Date = Date()
     @Published var isLoading: Bool = false
     @Published var errorMessage: String? = nil
+    @Published var isHealthy: Bool = true
     
     private let metricsManager: SystemMetricsManager
     private var updateTimer: Timer?
     private var updateInterval: TimeInterval = 1.0
+    private var healthCheckTimer: Timer?
     
     private let debounceDelay: TimeInterval = 0.1
     private var lastUpdateTrigger: Date = Date()
+    
+    private var consecutiveUpdateFailures: Int = 0
+    private let maxConsecutiveFailures: Int = 3
     
     override init() {
         self.metricsManager = SystemMetricsManager.shared
         super.init()
         setupMonitoring()
+        startHealthCheck()
     }
     
     private func setupMonitoring() {
@@ -106,11 +112,40 @@ class MetricsViewModel: NSObject, ObservableObject {
                 
                 self.lastUpdateTime = Date()
                 self.errorMessage = nil
+                self.consecutiveUpdateFailures = 0
             }
         } catch {
+            consecutiveUpdateFailures += 1
+            
             DispatchQueue.main.async {
-                self.errorMessage = "Failed to collect metrics: \(error.localizedDescription)"
-                print("Error updating metrics: \(error)")
+                if self.consecutiveUpdateFailures >= self.maxConsecutiveFailures {
+                    self.errorMessage = "Failed to collect metrics: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+    
+    private func startHealthCheck() {
+        healthCheckTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            self?.checkHealth()
+        }
+    }
+    
+    private func checkHealth() {
+        Task {
+            let (isHealthy, errorCount, isMonitoring) = await metricsManager.getHealthStatus()
+            
+            DispatchQueue.main.async {
+                self.isHealthy = isHealthy && isMonitoring
+                
+                if !isHealthy && errorCount > 5 {
+                    Task {
+                        await self.metricsManager.resetCaches()
+                        await self.metricsManager.stopMonitoring()
+                        try? await Task.sleep(nanoseconds: 1_000_000_000)
+                        await self.metricsManager.startMonitoring()
+                    }
+                }
             }
         }
     }
@@ -126,11 +161,15 @@ class MetricsViewModel: NSObject, ObservableObject {
     deinit {
         updateTimer?.invalidate()
         updateTimer = nil
+        healthCheckTimer?.invalidate()
+        healthCheckTimer = nil
     }
     
     func cleanup() {
         updateTimer?.invalidate()
         updateTimer = nil
+        healthCheckTimer?.invalidate()
+        healthCheckTimer = nil
         Task {
             await metricsManager.stopMonitoring()
         }

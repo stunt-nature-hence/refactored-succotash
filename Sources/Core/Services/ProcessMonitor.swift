@@ -3,12 +3,12 @@ import Darwin
 
 // MARK: - Libproc Definitions
 
-private let PROC_ALL_PIDS: UInt32 = 1
-private let PROC_PIDTASKINFO: Int32 = 4
-private let PROC_PIDT_SHORTBSDINFO: Int32 = 13
+let PROC_ALL_PIDS: UInt32 = 1
+let PROC_PIDTASKINFO: Int32 = 4
+let PROC_PIDT_SHORTBSDINFO: Int32 = 13
 
 // Made internal for testing
-struct proc_taskinfo {
+public struct proc_taskinfo {
     var pti_virtual_size: UInt64
     var pti_resident_size: UInt64
     var pti_total_user: UInt64
@@ -53,14 +53,16 @@ private func proc_pidinfo(_ pid: Int32, _ flavor: Int32, _ arg: UInt64, _ buffer
 
 // MARK: - Data Provider Protocol
 
-protocol ProcessDataProvider {
+public protocol ProcessDataProvider {
     func getAllPids() -> [Int32]
     func getProcessTaskInfo(pid: Int32) -> proc_taskinfo?
     func getProcessName(pid: Int32) -> String?
 }
 
-class RealProcessDataProvider: ProcessDataProvider {
-    func getAllPids() -> [Int32] {
+public class RealProcessDataProvider: ProcessDataProvider {
+    public init() {}
+    
+    public func getAllPids() -> [Int32] {
         // First call to get size
         let bufferSize = proc_listpids(PROC_ALL_PIDS, 0, nil, 0)
         guard bufferSize > 0 else { return [] }
@@ -81,7 +83,7 @@ class RealProcessDataProvider: ProcessDataProvider {
         return pids
     }
     
-    func getProcessTaskInfo(pid: Int32) -> proc_taskinfo? {
+    public func getProcessTaskInfo(pid: Int32) -> proc_taskinfo? {
         var info = proc_taskinfo(
             pti_virtual_size: 0, pti_resident_size: 0, pti_total_user: 0, pti_total_system: 0,
             pti_threads_user: 0, pti_threads_system: 0, pti_policy: 0, pti_faults: 0,
@@ -98,7 +100,7 @@ class RealProcessDataProvider: ProcessDataProvider {
         return nil
     }
     
-    func getProcessName(pid: Int32) -> String? {
+    public func getProcessName(pid: Int32) -> String? {
         var info = proc_bsdshortinfo(
             pbsi_pid: 0, pbsi_ppid: 0, pbsi_pgid: 0, pbsi_status: 0,
             pbsi_comm: (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
