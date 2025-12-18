@@ -14,10 +14,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     private func setupPopover() {
         let popover = NSPopover()
-        popover.contentSize = NSSize(width: 300, height: 400)
+        popover.contentSize = NSSize(width: 380, height: 850)
         popover.behavior = .transient
-        // Create the SwiftUI view that provides the window contents.
-        popover.contentViewController = NSHostingController(rootView: ContentView())
+        let hostingController = NSHostingController(rootView: ContentView())
+        hostingController.view.wantsLayer = true
+        popover.contentViewController = hostingController
         self.popover = popover
     }
 
