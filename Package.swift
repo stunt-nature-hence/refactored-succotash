@@ -18,10 +18,7 @@ let package = Package(
         .executableTarget(
             name: "SystemMonitor",
             dependencies: ["SystemMonitorCore"],
-            path: "Sources/App",
-            resources: [
-                .process("Resources")
-            ]
+            path: "Sources/App"
         ),
         .testTarget(
             name: "SystemMonitorTests",

@@ -13,11 +13,11 @@ public class OptimizedProcessMonitor: @unchecked Sendable {
         let cachedAt: TimeInterval
     }
     
-    private var previousProcessStates: [Int32: ProcessState] = [:]
-    private var cachedProcessNames: [Int32: CachedProcessName] = [:]
-    private var cachedProcesses: [ProcessMetrics] = []
-    private var lastFullRefreshTime: TimeInterval = 0
-    private var lastQuickRefreshTime: TimeInterval = 0
+    private nonisolated(unsafe) var previousProcessStates: [Int32: ProcessState] = [:]
+    private nonisolated(unsafe) var cachedProcessNames: [Int32: CachedProcessName] = [:]
+    private nonisolated(unsafe) var cachedProcesses: [ProcessMetrics] = []
+    private nonisolated(unsafe) var lastFullRefreshTime: TimeInterval = 0
+    private nonisolated(unsafe) var lastQuickRefreshTime: TimeInterval = 0
     
     private let fullRefreshInterval: TimeInterval = 10.0
     private let quickRefreshInterval: TimeInterval = 1.0
@@ -25,7 +25,6 @@ public class OptimizedProcessMonitor: @unchecked Sendable {
     private let maxCachedProcesses: Int = 100
     private let maxTrackedPIDs: Int = 200
     
-    private let lock = NSLock()
     private let dataProvider: ProcessDataProvider
     private let logger = Logger.shared
     internal var dateProvider: () -> Date = { Date() }
@@ -39,9 +38,6 @@ public class OptimizedProcessMonitor: @unchecked Sendable {
     }
     
     public func topProcesses(limit: Int = 5, by metric: ProcessSortMetric) -> [ProcessMetrics] {
-        lock.lock()
-        defer { lock.unlock() }
-        
         let now = dateProvider().timeIntervalSince1970
         
         if now - lastFullRefreshTime > fullRefreshInterval {
@@ -207,9 +203,6 @@ public class OptimizedProcessMonitor: @unchecked Sendable {
     }
     
     public func resetCache() {
-        lock.lock()
-        defer { lock.unlock() }
-        
         previousProcessStates.removeAll(keepingCapacity: true)
         cachedProcessNames.removeAll(keepingCapacity: true)
         cachedProcesses.removeAll(keepingCapacity: true)

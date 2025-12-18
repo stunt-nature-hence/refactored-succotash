@@ -13,14 +13,6 @@ public actor SystemMetricsManager {
     private var isMonitoring: Bool = false
     private var monitoringTask: Task<Void, Never>?
     
-    private var lastCPUMetrics: CPUMetrics?
-    private var lastRAMMetrics: RAMMetrics?
-    private var lastNetworkMetrics: NetworkMetrics?
-    
-    private var lastCPUUpdateTime: TimeInterval = 0
-    private var lastRAMUpdateTime: TimeInterval = 0
-    private var lastNetworkUpdateTime: TimeInterval = 0
-    
     private var cpuUpdateInterval: TimeInterval = 1.0
     private var ramUpdateInterval: TimeInterval = 2.0
     private var networkUpdateInterval: TimeInterval = 3.0
@@ -29,7 +21,14 @@ public actor SystemMetricsManager {
     private var maxConsecutiveErrors: Int = 5
     private var isInErrorState: Bool = false
     
-    private let metricsLock = NSLock()
+    private nonisolated(unsafe) var lastCPUMetrics: CPUMetrics?
+    private nonisolated(unsafe) var lastRAMMetrics: RAMMetrics?
+    private nonisolated(unsafe) var lastNetworkMetrics: NetworkMetrics?
+    
+    private nonisolated(unsafe) var lastCPUUpdateTime: TimeInterval = 0
+    private nonisolated(unsafe) var lastRAMUpdateTime: TimeInterval = 0
+    private nonisolated(unsafe) var lastNetworkUpdateTime: TimeInterval = 0
+    
     private let logger = Logger.shared
     
     public init() {
@@ -137,35 +136,24 @@ public actor SystemMetricsManager {
             }
         }
         
-        metricsLock.lock()
-        defer { metricsLock.unlock() }
-        
         if let cpu = cpuMetrics { lastCPUMetrics = cpu }
         if let ram = ramMetrics { lastRAMMetrics = ram }
         if let network = networkMetrics { lastNetworkMetrics = network }
     }
     
     public func getCPUMetrics() -> CPUMetrics? {
-        metricsLock.lock()
-        defer { metricsLock.unlock() }
         return lastCPUMetrics
     }
     
     public func getRAMMetrics() -> RAMMetrics? {
-        metricsLock.lock()
-        defer { metricsLock.unlock() }
         return lastRAMMetrics
     }
     
     public func getNetworkMetrics() -> NetworkMetrics? {
-        metricsLock.lock()
-        defer { metricsLock.unlock() }
         return lastNetworkMetrics
     }
     
     public func getAllMetrics() -> (cpu: CPUMetrics?, ram: RAMMetrics?, network: NetworkMetrics?) {
-        metricsLock.lock()
-        defer { metricsLock.unlock() }
         return (lastCPUMetrics, lastRAMMetrics, lastNetworkMetrics)
     }
     
@@ -189,9 +177,6 @@ public actor SystemMetricsManager {
         logger.info("Resetting all caches")
         processMonitor.resetCache()
         
-        metricsLock.lock()
-        defer { metricsLock.unlock() }
-        
         lastCPUMetrics = nil
         lastRAMMetrics = nil
         lastNetworkMetrics = nil
@@ -206,6 +191,8 @@ public actor SystemMetricsManager {
     
     deinit {
         logger.info("SystemMetricsManager deinit")
-        stopMonitoring()
+        Task {
+            await self.stopMonitoring()
+        }
     }
 }
