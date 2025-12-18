@@ -49,3 +49,11 @@ iOSInjectionProject/
 # macOS
 #
 .DS_Store
+
+# Audit Reports
+#
+# Note: Audit reports are generated locally but can be committed if desired
+# audit_log.txt - detailed execution log
+# audit_report.html - visual report
+# audit_report.json - machine-readable results
+# DEBUG_REPORT.md is the main report (template exists, generated reports overwrite)
