@@ -1,5 +1,6 @@
 import Cocoa
 import SwiftUI
+import SystemMonitorCore
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!

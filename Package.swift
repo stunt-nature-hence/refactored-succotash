@@ -7,16 +7,26 @@ let package = Package(
         .macOS(.v13)
     ],
     products: [
-        .executable(name: "SystemMonitor", targets: ["SystemMonitor"])
+        .executable(name: "SystemMonitor", targets: ["SystemMonitor"]),
+        .library(name: "SystemMonitorCore", targets: ["SystemMonitorCore"])
     ],
     targets: [
+        .target(
+            name: "SystemMonitorCore",
+            path: "Sources/Core"
+        ),
         .executableTarget(
             name: "SystemMonitor",
-            path: "SystemMonitor",
-            exclude: ["Info.plist"],
+            dependencies: ["SystemMonitorCore"],
+            path: "Sources/App",
             resources: [
                 .process("Resources")
             ]
+        ),
+        .testTarget(
+            name: "SystemMonitorTests",
+            dependencies: ["SystemMonitorCore"],
+            path: "Tests"
         )
     ]
 )
