@@ -1,40 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var viewModel = MetricsViewModel()
     @State private var scrollOffset: CGFloat = 0
-    
-    // Mock CPU data
-    private let cpuValue = 45.5
-    private let cpuSystemUsage = 12.3
-    private let cpuUserUsage = 33.2
-    private let cpuIdlePercent = 54.5
-    
-    // Mock RAM data
-    private let ramUsagePercent = 68.2
-    private let ramUsedGB = 11.2
-    private let ramTotalGB = 16.0
-    
-    // Mock Network data
-    private let networkInterfaces = [
-        ("Wi-Fi", 524288.0, 5242880.0, true),
-        ("Ethernet", 0.0, 0.0, false)
-    ]
-    
-    // Mock top CPU processes
-    private let topCPUProcesses = [
-        ProcessItem(id: 1, name: "Safari", usage: 45.5, icon: "app.fill"),
-        ProcessItem(id: 2, name: "Chrome", usage: 32.1, icon: "app.fill"),
-        ProcessItem(id: 3, name: "Xcode", usage: 28.7, icon: "app.fill"),
-        ProcessItem(id: 4, name: "Mail", usage: 12.3, icon: "app.fill")
-    ]
-    
-    // Mock top RAM processes
-    private let topRAMProcesses = [
-        ProcessItem(id: 1, name: "Chrome", usage: 38.2, icon: "app.fill"),
-        ProcessItem(id: 2, name: "Safari", usage: 25.4, icon: "app.fill"),
-        ProcessItem(id: 3, name: "Xcode", usage: 18.9, icon: "app.fill"),
-        ProcessItem(id: 4, name: "Final Cut Pro", usage: 14.7, icon: "app.fill")
-    ]
     
     var body: some View {
         ZStack {
@@ -42,29 +10,37 @@ struct ContentView: View {
             
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 14) {
-                    HeaderView()
+                    HeaderView(isLoading: viewModel.isLoading)
+                    
+                    if let errorMessage = viewModel.errorMessage {
+                        ErrorBannerView(message: errorMessage)
+                            .padding(.horizontal, 12)
+                    }
+                    
+                    let networkDownload = viewModel.networkInterfaces.reduce(0) { $0 + $1.download }
+                    let networkUpload = viewModel.networkInterfaces.reduce(0) { $0 + $1.upload }
                     
                     // Quick stats bar
                     QuickStatsView(
-                        cpuUsage: cpuValue,
-                        ramUsage: ramUsagePercent,
-                        networkDownload: 5242880,
-                        networkUpload: 524288
+                        cpuUsage: viewModel.cpuUsage,
+                        ramUsage: viewModel.ramUsagePercent,
+                        networkDownload: networkDownload,
+                        networkUpload: networkUpload
                     )
                     .padding(.horizontal, 12)
                     
                     // System health summary
                     SystemDashboardSummary(
-                        cpuUsage: cpuValue,
-                        ramUsage: ramUsagePercent,
-                        networkActive: true
+                        cpuUsage: viewModel.cpuUsage,
+                        ramUsage: viewModel.ramUsagePercent,
+                        networkActive: networkDownload > 0 || networkUpload > 0
                     )
                     .padding(.horizontal, 12)
                     
                     // Primary metrics - gauges
                     HStack(spacing: 12) {
                         CircularGaugeView(
-                            value: cpuValue,
+                            value: viewModel.cpuUsage,
                             total: 100,
                             label: "CPU",
                             color: .blue,
@@ -72,7 +48,7 @@ struct ContentView: View {
                         )
                         
                         CircularGaugeView(
-                            value: ramUsagePercent,
+                            value: viewModel.ramUsagePercent,
                             total: 100,
                             label: "RAM",
                             color: .red,
@@ -87,48 +63,53 @@ struct ContentView: View {
                     ResourceMetricView(
                         title: "CPU Usage",
                         systemIcon: "cpu",
-                        value: cpuValue,
-                        subtitle: "System is performing well",
+                        value: viewModel.cpuUsage,
+                        subtitle: "System performance",
                         color: .blue,
                         details: [
-                            ("System", String(format: "%.1f%%", cpuSystemUsage)),
-                            ("User", String(format: "%.1f%%", cpuUserUsage)),
-                            ("Idle", String(format: "%.1f%%", cpuIdlePercent))
+                            ("System", String(format: "%.1f%%", viewModel.cpuSystemUsage)),
+                            ("User", String(format: "%.1f%%", viewModel.cpuUserUsage)),
+                            ("Idle", String(format: "%.1f%%", viewModel.cpuIdlePercent))
                         ]
                     )
                     .padding(.horizontal, 12)
                     
                     // RAM Details
+                    let ramUsedGB = Double(viewModel.ramUsedBytes) / (1024 * 1024 * 1024)
+                    let ramTotalGB = Double(viewModel.ramTotalBytes) / (1024 * 1024 * 1024)
+                    
                     ResourceMetricView(
                         title: "Memory Usage",
                         systemIcon: "memorychip",
-                        value: ramUsagePercent,
+                        value: viewModel.ramUsagePercent,
                         subtitle: String(format: "%.1f GB of %.1f GB used", ramUsedGB, ramTotalGB),
                         color: .red,
                         details: [
-                            ("Used", formatBytes(ramUsedGB * 1024 * 1024 * 1024)),
-                            ("Available", formatBytes((ramTotalGB - ramUsedGB) * 1024 * 1024 * 1024))
+                            ("Used", formatBytes(Double(viewModel.ramUsedBytes))),
+                            ("Available", formatBytes(Double(viewModel.ramTotalBytes - viewModel.ramUsedBytes)))
                         ]
                     )
                     .padding(.horizontal, 12)
                     
                     // Network interfaces
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("Network Interfaces", systemImage: "network")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                            .padding(.horizontal, 12)
-                        
-                        VStack(spacing: 8) {
-                            ForEach(0..<networkInterfaces.count, id: \.self) { index in
-                                let (name, upload, download, connected) = networkInterfaces[index]
-                                NetworkCardView(
-                                    name: name,
-                                    upload: upload,
-                                    download: download,
-                                    connected: connected
-                                )
+                    if !viewModel.networkInterfaces.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("Network Interfaces", systemImage: "network")
+                                .font(.headline)
+                                .foregroundColor(.primary)
                                 .padding(.horizontal, 12)
+                            
+                            VStack(spacing: 8) {
+                                ForEach(0..<viewModel.networkInterfaces.count, id: \.self) { index in
+                                    let iface = viewModel.networkInterfaces[index]
+                                    NetworkCardView(
+                                        name: iface.name,
+                                        upload: iface.upload,
+                                        download: iface.download,
+                                        connected: iface.connected
+                                    )
+                                    .padding(.horizontal, 12)
+                                }
                             }
                         }
                     }
@@ -137,7 +118,7 @@ struct ContentView: View {
                     ProcessListView(
                         title: "Top CPU Processes",
                         icon: "chart.bar.fill",
-                        processes: topCPUProcesses,
+                        processes: viewModel.topCPUProcesses.map { ProcessItem(id: $0.id, name: $0.name, usage: $0.usage, icon: $0.icon) },
                         color: .blue,
                         unit: "%"
                     )
@@ -147,14 +128,14 @@ struct ContentView: View {
                     ProcessListView(
                         title: "Top Memory Processes",
                         icon: "chart.pie.fill",
-                        processes: topRAMProcesses,
+                        processes: viewModel.topRAMProcesses.map { ProcessItem(id: $0.id, name: $0.name, usage: $0.usage, icon: $0.icon) },
                         color: .red,
-                        unit: "%"
+                        unit: "GB"
                     )
                     .padding(.horizontal, 12)
                     
                     // Footer
-                    FooterView(lastUpdate: Date())
+                    FooterView(lastUpdate: viewModel.lastUpdateTime)
                 }
                 .padding(.vertical, 12)
             }
@@ -172,6 +153,7 @@ struct ContentView: View {
 
 struct HeaderView: View {
     @State private var isPulsing = false
+    let isLoading: Bool
     
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -189,11 +171,11 @@ struct HeaderView: View {
                 
                 ZStack {
                     Circle()
-                        .fill(Color.green)
+                        .fill(isLoading ? Color.yellow : Color.green)
                         .frame(width: 8, height: 8)
                     
                     Circle()
-                        .stroke(Color.green.opacity(0.5), lineWidth: 2)
+                        .stroke((isLoading ? Color.yellow : Color.green).opacity(0.5), lineWidth: 2)
                         .frame(width: 12, height: 12)
                         .scaleEffect(isPulsing ? 1.3 : 1.0)
                         .opacity(isPulsing ? 0.3 : 0.8)
@@ -206,6 +188,27 @@ struct HeaderView: View {
             }
         }
         .padding(.horizontal, 12)
+    }
+}
+
+struct ErrorBannerView: View {
+    let message: String
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundColor(.red)
+            
+            Text(message)
+                .font(.caption)
+                .foregroundColor(.primary)
+                .lineLimit(2)
+            
+            Spacer()
+        }
+        .padding(10)
+        .background(Color.red.opacity(0.1))
+        .cornerRadius(8)
     }
 }
 

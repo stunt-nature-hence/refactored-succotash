@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ProcessItem: Identifiable {
-    let id: Int
+    let id: Int32
     let name: String
     let usage: Double
     let icon: String
