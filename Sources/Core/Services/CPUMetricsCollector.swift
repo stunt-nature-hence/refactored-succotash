@@ -1,10 +1,9 @@
 import Darwin
 import Foundation
 
-class CPUMetricsCollector: Sendable {
-    private let lock = NSLock()
-    private var previousCPUTick: host_cpu_load_info? = nil
-    private var lastSuccessfulMetrics: CPUMetrics? = nil
+class CPUMetricsCollector: @unchecked Sendable {
+    private nonisolated(unsafe) var previousCPUTick: host_cpu_load_info? = nil
+    private nonisolated(unsafe) var lastSuccessfulMetrics: CPUMetrics? = nil
     private let logger = Logger.shared
     
     func collectMetrics() throws -> CPUMetrics {
@@ -37,9 +36,6 @@ class CPUMetricsCollector: Sendable {
     }
     
     private func calculateCPUUsage(with currentLoad: host_cpu_load_info) -> CPUMetrics {
-        lock.lock()
-        defer { lock.unlock() }
-        
         let current = (
             user: UInt32(currentLoad.cpu_ticks.0),
             system: UInt32(currentLoad.cpu_ticks.1),

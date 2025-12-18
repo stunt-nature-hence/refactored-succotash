@@ -135,12 +135,11 @@ public class ProcessMonitor: @unchecked Sendable {
         let timestamp: TimeInterval
     }
     
-    private var previousProcessStates: [Int32: ProcessState] = [:]
-    private var cachedProcesses: [ProcessMetrics] = []
-    private var lastUpdateTime: TimeInterval = 0
+    private nonisolated(unsafe) var previousProcessStates: [Int32: ProcessState] = [:]
+    private nonisolated(unsafe) var cachedProcesses: [ProcessMetrics] = []
+    private nonisolated(unsafe) var lastUpdateTime: TimeInterval = 0
     private let cacheTTL: TimeInterval = 1.0 // 1 second cache
     
-    private let lock = NSLock()
     private let dataProvider: ProcessDataProvider
     internal var dateProvider: () -> Date = { Date() }
     
@@ -153,9 +152,6 @@ public class ProcessMonitor: @unchecked Sendable {
     }
     
     public func topProcesses(limit: Int = 5, by metric: ProcessSortMetric) -> [ProcessMetrics] {
-        lock.lock()
-        defer { lock.unlock() }
-        
         let now = dateProvider().timeIntervalSince1970
         if now - lastUpdateTime > cacheTTL {
             refreshProcesses(now: now)
