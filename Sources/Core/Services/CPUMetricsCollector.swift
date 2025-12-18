@@ -4,6 +4,8 @@ import Foundation
 class CPUMetricsCollector: Sendable {
     private let lock = NSLock()
     private var previousCPUTick: host_cpu_load_info? = nil
+    private var lastSuccessfulMetrics: CPUMetrics? = nil
+    private let logger = Logger.shared
     
     func collectMetrics() throws -> CPUMetrics {
         var count: mach_msg_type_number_t = HOST_CPU_LOAD_INFO_COUNT
@@ -19,10 +21,19 @@ class CPUMetricsCollector: Sendable {
         }
         
         guard result == KERN_SUCCESS else {
+            logger.error("Failed to get CPU load info: kern_return_t = \(result)")
+            
+            if let fallback = lastSuccessfulMetrics {
+                logger.warning("Returning cached CPU metrics due to error")
+                return fallback
+            }
+            
             throw SystemMetricsError.kernelAPIError("Failed to get CPU load info: kern_return_t = \(result)")
         }
         
-        return calculateCPUUsage(with: cpuLoad)
+        let metrics = calculateCPUUsage(with: cpuLoad)
+        lastSuccessfulMetrics = metrics
+        return metrics
     }
     
     private func calculateCPUUsage(with currentLoad: host_cpu_load_info) -> CPUMetrics {

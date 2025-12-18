@@ -2,9 +2,25 @@ import Darwin
 import Foundation
 
 class NetworkMetricsCollector: @unchecked Sendable {
+    private var lastSuccessfulMetrics: NetworkMetrics? = nil
+    private let logger = Logger.shared
+    
     func collectMetrics() throws -> NetworkMetrics {
-        let interfaces = try getNetworkInterfaces()
-        return NetworkMetrics(interfaces: interfaces)
+        do {
+            let interfaces = try getNetworkInterfaces()
+            let metrics = NetworkMetrics(interfaces: interfaces)
+            lastSuccessfulMetrics = metrics
+            return metrics
+        } catch {
+            logger.error("Failed to collect network metrics: \(error)")
+            
+            if let fallback = lastSuccessfulMetrics {
+                logger.warning("Returning cached network metrics due to error")
+                return fallback
+            }
+            
+            throw error
+        }
     }
     
     private func getNetworkInterfaces() throws -> [NetworkInterfaceMetrics] {

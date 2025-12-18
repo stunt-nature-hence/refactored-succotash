@@ -6,9 +6,10 @@ public actor SystemMetricsManager {
     private let cpuCollector: CPUMetricsCollector
     private let ramCollector: RAMMetricsCollector
     private let networkCollector: NetworkMetricsCollector
-    private let processMonitor: ProcessMonitor
+    private let processMonitor: OptimizedProcessMonitor
     
     private var samplingInterval: TimeInterval = 1.0
+    private var minSamplingInterval: TimeInterval = 0.5
     private var isMonitoring: Bool = false
     private var monitoringTask: Task<Void, Never>?
     
@@ -16,53 +17,132 @@ public actor SystemMetricsManager {
     private var lastRAMMetrics: RAMMetrics?
     private var lastNetworkMetrics: NetworkMetrics?
     
+    private var lastCPUUpdateTime: TimeInterval = 0
+    private var lastRAMUpdateTime: TimeInterval = 0
+    private var lastNetworkUpdateTime: TimeInterval = 0
+    
+    private var cpuUpdateInterval: TimeInterval = 1.0
+    private var ramUpdateInterval: TimeInterval = 2.0
+    private var networkUpdateInterval: TimeInterval = 3.0
+    
+    private var consecutiveErrors: Int = 0
+    private var maxConsecutiveErrors: Int = 5
+    private var isInErrorState: Bool = false
+    
     private let metricsLock = NSLock()
+    private let logger = Logger.shared
     
     public init() {
         self.cpuCollector = CPUMetricsCollector()
         self.ramCollector = RAMMetricsCollector()
         self.networkCollector = NetworkMetricsCollector()
-        self.processMonitor = ProcessMonitor()
+        self.processMonitor = OptimizedProcessMonitor()
+        logger.info("SystemMetricsManager initialized")
     }
     
     public func setSamplingInterval(_ interval: TimeInterval) {
-        samplingInterval = max(0.1, interval)
+        samplingInterval = max(minSamplingInterval, interval)
+        logger.info("Sampling interval set to \(samplingInterval)s")
     }
     
     public func startMonitoring() {
-        guard !isMonitoring else { return }
+        guard !isMonitoring else { 
+            logger.warning("Monitoring already started, ignoring")
+            return 
+        }
         isMonitoring = true
+        logger.info("Starting background monitoring")
         
         monitoringTask = Task {
             while !Task.isCancelled && isMonitoring {
-                do {
-                    try await collectMetrics()
-                } catch {
-                    print("Error collecting metrics: \(error)")
-                }
+                await collectMetricsWithErrorHandling()
                 
                 try? await Task.sleep(nanoseconds: UInt64(samplingInterval * 1_000_000_000))
             }
+            logger.info("Monitoring task completed")
         }
     }
     
     public func stopMonitoring() {
+        guard isMonitoring else { return }
+        logger.info("Stopping background monitoring")
         isMonitoring = false
         monitoringTask?.cancel()
         monitoringTask = nil
     }
     
+    private func collectMetricsWithErrorHandling() async {
+        do {
+            try await collectMetrics()
+            
+            if isInErrorState {
+                logger.info("Recovered from error state")
+                consecutiveErrors = 0
+                isInErrorState = false
+            }
+            
+            MemoryProfiler.shared.logMemoryUsageIfNeeded()
+            
+            if MemoryProfiler.shared.checkMemoryPressure() {
+                logger.warning("High memory pressure detected, triggering cache cleanup")
+                processMonitor.resetCache()
+            }
+        } catch {
+            consecutiveErrors += 1
+            logger.error("Error collecting metrics (\(consecutiveErrors)/\(maxConsecutiveErrors)): \(error)")
+            
+            if consecutiveErrors >= maxConsecutiveErrors && !isInErrorState {
+                isInErrorState = true
+                logger.error("Entered error state after \(consecutiveErrors) consecutive errors")
+            }
+            
+            if consecutiveErrors > maxConsecutiveErrors * 2 {
+                logger.warning("Too many errors, backing off")
+                try? await Task.sleep(nanoseconds: UInt64(samplingInterval * 3 * 1_000_000_000))
+            }
+        }
+    }
+    
     public func collectMetrics() async throws {
-        let cpuMetrics = try cpuCollector.collectMetrics()
-        let ramMetrics = try ramCollector.collectMetrics()
-        let networkMetrics = try networkCollector.collectMetrics()
+        let now = Date().timeIntervalSince1970
+        
+        var cpuMetrics: CPUMetrics? = nil
+        var ramMetrics: RAMMetrics? = nil
+        var networkMetrics: NetworkMetrics? = nil
+        
+        if now - lastCPUUpdateTime >= cpuUpdateInterval {
+            do {
+                cpuMetrics = try cpuCollector.collectMetrics()
+                lastCPUUpdateTime = now
+            } catch {
+                logger.warning("Failed to collect CPU metrics: \(error)")
+            }
+        }
+        
+        if now - lastRAMUpdateTime >= ramUpdateInterval {
+            do {
+                ramMetrics = try ramCollector.collectMetrics()
+                lastRAMUpdateTime = now
+            } catch {
+                logger.warning("Failed to collect RAM metrics: \(error)")
+            }
+        }
+        
+        if now - lastNetworkUpdateTime >= networkUpdateInterval {
+            do {
+                networkMetrics = try networkCollector.collectMetrics()
+                lastNetworkUpdateTime = now
+            } catch {
+                logger.warning("Failed to collect network metrics: \(error)")
+            }
+        }
         
         metricsLock.lock()
         defer { metricsLock.unlock() }
         
-        lastCPUMetrics = cpuMetrics
-        lastRAMMetrics = ramMetrics
-        lastNetworkMetrics = networkMetrics
+        if let cpu = cpuMetrics { lastCPUMetrics = cpu }
+        if let ram = ramMetrics { lastRAMMetrics = ram }
+        if let network = networkMetrics { lastNetworkMetrics = network }
     }
     
     public func getCPUMetrics() -> CPUMetrics? {
@@ -103,5 +183,29 @@ public actor SystemMetricsManager {
     
     public func getTopProcesses(limit: Int = 5, by metric: ProcessSortMetric) -> [ProcessMetrics] {
         return processMonitor.topProcesses(limit: limit, by: metric)
+    }
+    
+    public func resetCaches() {
+        logger.info("Resetting all caches")
+        processMonitor.resetCache()
+        
+        metricsLock.lock()
+        defer { metricsLock.unlock() }
+        
+        lastCPUMetrics = nil
+        lastRAMMetrics = nil
+        lastNetworkMetrics = nil
+        lastCPUUpdateTime = 0
+        lastRAMUpdateTime = 0
+        lastNetworkUpdateTime = 0
+    }
+    
+    public func getHealthStatus() -> (isHealthy: Bool, errorCount: Int, isMonitoring: Bool) {
+        return (!isInErrorState, consecutiveErrors, isMonitoring)
+    }
+    
+    deinit {
+        logger.info("SystemMetricsManager deinit")
+        stopMonitoring()
     }
 }
