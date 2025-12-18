@@ -6,6 +6,7 @@ public actor SystemMetricsManager {
     private let cpuCollector: CPUMetricsCollector
     private let ramCollector: RAMMetricsCollector
     private let networkCollector: NetworkMetricsCollector
+    private let processMonitor: ProcessMonitor
     
     private var samplingInterval: TimeInterval = 1.0
     private var isMonitoring: Bool = false
@@ -21,6 +22,7 @@ public actor SystemMetricsManager {
         self.cpuCollector = CPUMetricsCollector()
         self.ramCollector = RAMMetricsCollector()
         self.networkCollector = NetworkMetricsCollector()
+        self.processMonitor = ProcessMonitor()
     }
     
     public func setSamplingInterval(_ interval: TimeInterval) {
@@ -97,5 +99,9 @@ public actor SystemMetricsManager {
     
     public func getOnDemandNetworkMetrics() throws -> NetworkMetrics {
         try networkCollector.collectMetrics()
+    }
+    
+    public func getTopProcesses(limit: Int = 5, by metric: ProcessSortMetric) -> [ProcessMetrics] {
+        return processMonitor.topProcesses(limit: limit, by: metric)
     }
 }
