@@ -12,9 +12,40 @@
     <string>1.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
+    
+    <!-- Menu Bar App Configuration -->
     <key>LSUIElement</key>
     <true/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.utilities</string>
+    
+    <!-- Privacy Permissions for System Monitoring -->
+    <key>NSProcessInfoUsageDescription</key>
+    <string>This app needs access to process information to display system activity.</string>
+    <key>NSNetworkUsageDescription</key>
+    <string>This app needs network usage information to display network activity.</string>
+    
+    <!-- Hardened Runtime and Security -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <false/>
+    </dict>
+    
+    <!-- Menu Bar Integration -->
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
+    
+    <!-- App Capabilities -->
+    <key>NSSupportsAutomaticTermination</key>
+    <true/>
+    <key>NSSupportsSuddenTermination</key>
+    <false/>
+    
+    <!-- Window Management -->
+    <key>NSSupportsAutomaticWindowTabbing</key>
+    <true/>
 </dict>
 </plist>
