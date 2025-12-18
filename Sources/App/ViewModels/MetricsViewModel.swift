@@ -125,6 +125,12 @@ class MetricsViewModel: NSObject, ObservableObject {
     
     deinit {
         updateTimer?.invalidate()
+        updateTimer = nil
+    }
+    
+    func cleanup() {
+        updateTimer?.invalidate()
+        updateTimer = nil
         Task {
             await metricsManager.stopMonitoring()
         }

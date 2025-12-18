@@ -141,6 +141,9 @@ struct ContentView: View {
             }
         }
         .frame(width: 380, height: 850)
+        .onDisappear {
+            viewModel.cleanup()
+        }
     }
     
     private func formatBytes(_ bytes: Double) -> String {
