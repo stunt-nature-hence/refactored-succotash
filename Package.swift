@@ -21,8 +21,7 @@ let package = Package(
             path: "Sources/App",
             resources: [
                 .process("Resources")
-            ],
-            entitlements: "Sources/App/SystemMonitor.entitlements"
+            ]
         ),
         .testTarget(
             name: "SystemMonitorTests",
