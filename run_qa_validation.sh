@@ -171,10 +171,9 @@ run_test "Entitlements Valid" "[ -f Sources/App/SystemMonitor.entitlements ] && 
 print_step "Phase 8: Documentation Quality"
 echo "================================="
 
-run_test "QA Plan Document" "[ -f QA_VALIDATION_PLAN.md ]"
-run_test "Production Assessment" "[ -f PRODUCTION_READINESS_ASSESSMENT.md ]"
+# QA_VALIDATION_PLAN.md and PRODUCTION_READINESS_ASSESSMENT.md were removed as part of cleanup
 run_test "Build Script" "[ -f build_production.sh ]"
-run_test "README Files" "[ -f *.md ]"
+run_test "README File" "[ -f README.md ]"
 
 # PHASE 9: Performance Benchmarks
 print_step "Phase 9: Performance Validation"
