@@ -45,7 +45,9 @@ class RAMMetricsCollector: @unchecked Sendable {
     }
     
     private func getVMStatistics() throws -> vm_statistics64 {
-        var count: mach_msg_type_number_t = HOST_VM_INFO64_COUNT
+        var count: mach_msg_type_number_t = mach_msg_type_number_t(
+            MemoryLayout<vm_statistics64>.size / MemoryLayout<integer_t>.size
+        )
         var vmStats = vm_statistics64()
         
         let result = withUnsafeMutablePointer(to: &vmStats) { ptr in

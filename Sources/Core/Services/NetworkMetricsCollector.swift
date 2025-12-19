@@ -90,13 +90,15 @@ class NetworkMetricsCollector: @unchecked Sendable {
     }
     
     private func getInterfaceStatistics(for interfaceName: String) throws -> NetworkInterfaceMetrics {
-        // Use sysctlbyname to get statistics for the specific interface
         var ifData = if_data()
-        var size = socklen_t(MemoryLayout<if_data>.size)
-        
+        var size = size_t(MemoryLayout<if_data>.size)
+
         let mibString = "net.\(interfaceName).0"
-        guard sysctlbyname(mibString, &ifData, &size, nil, 0) == 0 else {
-            // If specific interface query fails, fall back to defaults
+        let result: Int32 = withUnsafeMutablePointer(to: &ifData) { ifDataPtr in
+            sysctlbyname(mibString, UnsafeMutableRawPointer(ifDataPtr), &size, nil, 0)
+        }
+
+        guard result == 0 else {
             return NetworkInterfaceMetrics(
                 name: interfaceName,
                 isUp: false,
@@ -109,19 +111,17 @@ class NetworkMetricsCollector: @unchecked Sendable {
                 droppedPackets: 0
             )
         }
-        
-        // Note: The specific interface sysctl may not exist for all interfaces
-        // This is a safer approach for Swift 6 compatibility
+
         return NetworkInterfaceMetrics(
             name: interfaceName,
-            isUp: false,  // We'll determine this from getifaddrs
-            bytesSent: 0,
-            bytesReceived: 0,
-            packetsSent: 0,
-            packetsReceived: 0,
-            errorsSent: 0,
-            errorsReceived: 0,
-            droppedPackets: 0
+            isUp: false,
+            bytesSent: UInt64(ifData.ifi_obytes),
+            bytesReceived: UInt64(ifData.ifi_ibytes),
+            packetsSent: UInt64(ifData.ifi_opackets),
+            packetsReceived: UInt64(ifData.ifi_ipackets),
+            errorsSent: UInt64(ifData.ifi_oerrors),
+            errorsReceived: UInt64(ifData.ifi_ierrors),
+            droppedPackets: UInt64(ifData.ifi_iqdrops)
         )
     }
 }

@@ -18,7 +18,11 @@ let package = Package(
         .executableTarget(
             name: "SystemMonitor",
             dependencies: ["SystemMonitorCore"],
-            path: "Sources/App"
+            path: "Sources/App",
+            exclude: [
+                "Info.plist",
+                "SystemMonitor.entitlements"
+            ]
         ),
         .testTarget(
             name: "SystemMonitorTests",
