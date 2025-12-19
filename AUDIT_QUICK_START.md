@@ -1,21 +1,33 @@
 # Audit Script - Quick Start Guide
 
-## TL;DR - Just Run It!
+## TL;DR - Generate a real DEBUG_REPORT.md (Recommended)
+
+```bash
+./audit_debug_report.sh
+```
+
+This will always generate:
+- 📄 **DEBUG_REPORT.md** - Parsed issues + raw build output
+- 📝 **audit_log.txt** - Complete raw `swift build` output (stdout + stderr)
+
+## Full/Comprehensive Audit (Optional)
 
 ```bash
 ./audit_system_monitor.sh
 ```
 
-Three files will be generated:
-- 📄 **DEBUG_REPORT.md** - Read this first!
-- 🌐 **audit_report.html** - Open in browser
-- 📝 **audit_log.txt** - Detailed log
+This generates:
+- 📄 **DEBUG_REPORT.md**
+- 🌐 **audit_report.html**
+- 🧾 **audit_report.json**
+- 📝 **audit_log.txt**
 
 ## Command Cheat Sheet
 
 | Command | Purpose |
 |---------|---------|
-| `./audit_system_monitor.sh` | Basic audit |
+| `./audit_debug_report.sh` | Build + parse errors into DEBUG_REPORT.md |
+| `./audit_system_monitor.sh` | Comprehensive audit |
 | `./audit_system_monitor.sh --verbose` | Detailed output |
 | `./audit_system_monitor.sh --fix-suggestions` | Show fixes |
 | `./audit_system_monitor.sh --verbose --fix-suggestions` | Everything |
