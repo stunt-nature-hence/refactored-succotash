@@ -50,10 +50,8 @@ iOSInjectionProject/
 #
 .DS_Store
 
-# Audit Reports
-#
-# Note: Audit reports are generated locally but can be committed if desired
-# audit_log.txt - detailed execution log
-# audit_report.html - visual report
-# audit_report.json - machine-readable results
-# DEBUG_REPORT.md is the main report (template exists, generated reports overwrite)
+# Documentation Control
+# Prevent clutter by ignoring all markdown files except README.md
+# Only code files, test files, and essential build scripts should be added.
+*.md
+!README.md
