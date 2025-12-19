@@ -7,7 +7,9 @@ class CPUMetricsCollector: @unchecked Sendable {
     private let logger = Logger.shared
     
     func collectMetrics() throws -> CPUMetrics {
-        var count: mach_msg_type_number_t = HOST_CPU_LOAD_INFO_COUNT
+        var count: mach_msg_type_number_t = mach_msg_type_number_t(
+            MemoryLayout<host_cpu_load_info>.size / MemoryLayout<integer_t>.size
+        )
         var cpuLoad = host_cpu_load_info()
         
         let result = withUnsafeMutablePointer(to: &cpuLoad) { ptr in

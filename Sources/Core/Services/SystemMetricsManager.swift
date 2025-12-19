@@ -191,8 +191,6 @@ public actor SystemMetricsManager {
     
     deinit {
         logger.info("SystemMetricsManager deinit")
-        Task {
-            await self.stopMonitoring()
-        }
+        stopMonitoring()
     }
 }
